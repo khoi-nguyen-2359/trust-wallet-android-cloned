@@ -107,7 +107,7 @@ public class SendActivity extends BaseActivity {
     private void onNext() {
         // Validate input fields
         boolean hasError = false;
-        final String to = toAddressText.getText().toString();
+        final String to = toAddressText.getText().toString().toLowerCase();
         final String amount = amountText.getText().toString();
 
         if (!viewModel.setToAddress(to)) {
