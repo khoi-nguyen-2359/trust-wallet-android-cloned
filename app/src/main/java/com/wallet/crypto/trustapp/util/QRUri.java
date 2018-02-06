@@ -47,6 +47,8 @@ public class QRUri {
         return parameters.get(key);
     }
 
+    public Map<String, String> getParameters() { return parameters; }
+
     // Be lenient and allow invalid characters in address
     private static boolean isValidAddress(String address) {
         return !TextUtils.isEmpty(address) && address.length() == ADDRESS_LENGTH;

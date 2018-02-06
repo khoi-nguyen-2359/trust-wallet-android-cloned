@@ -112,6 +112,10 @@ dependencies {
     implementation "com.google.dagger:dagger-android:$project.daggerVersion"
     // Tests
     testImplementation "junit:junit:4.12"
+    testImplementation "org.powermock:powermock-module-junit4:1.6.2"
+    testImplementation "org.powermock:powermock-module-junit4-rule:1.6.2"
+    testImplementation "org.powermock:powermock-api-mockito:1.6.2"
+    testImplementation "org.powermock:powermock-classloading-xstream:1.6.2"
     androidTestImplementation("com.android.support.test.espresso:espresso-core:2.2.2", {
         exclude group: "com.android.support", module: "support-annotations"
     })
