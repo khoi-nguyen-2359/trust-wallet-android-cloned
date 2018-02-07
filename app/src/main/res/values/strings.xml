@@ -241,4 +241,6 @@
     <string name="token_name">%1$s (%2$s)</string>
     <string name="new_transaction_value">-%1$s %2$s</string>
     <string name="gas_price_value">%1$s %2$s</string>
+    <string name="too_low">Too low</string>
+    <string name="too_high">Too high</string>
 </resources>

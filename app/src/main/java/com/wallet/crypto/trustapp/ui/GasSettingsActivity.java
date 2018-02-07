@@ -5,8 +5,13 @@ import android.arch.lifecycle.ViewModelProviders;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
+import android.text.Editable;
+import android.text.InputType;
+import android.text.TextWatcher;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.EditText;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
@@ -31,11 +36,18 @@ public class GasSettingsActivity extends BaseActivity {
     GasSettingsViewModelFactory viewModelFactory;
     GasSettingsViewModel viewModel;
 
-    private TextView gasPriceText;
-    private TextView gasLimitText;
+    private EditText gasPriceText;
+    private EditText gasLimitText;
     private TextView networkFeeText;
     private TextView gasPriceInfoText;
     private TextView gasLimitInfoText;
+    private SeekBar gasPriceSlider;
+    private SeekBar gasLimitSlider;
+
+    private BigInteger gasLimitMin;
+    private BigInteger gasLimitMax;
+    private Integer gasPriceMinGwei;
+    private Integer gasPriceMaxGwei;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -46,8 +58,8 @@ public class GasSettingsActivity extends BaseActivity {
         setContentView(R.layout.activity_gas_settings);
         toolbar();
 
-        SeekBar gasPriceSlider = findViewById(R.id.gas_price_slider);
-        SeekBar gasLimitSlider = findViewById(R.id.gas_limit_slider);
+        gasPriceSlider = findViewById(R.id.gas_price_slider);
+        gasLimitSlider = findViewById(R.id.gas_limit_slider);
         gasPriceText = findViewById(R.id.gas_price_text);
         gasLimitText = findViewById(R.id.gas_limit_text);
         networkFeeText = findViewById(R.id.text_network_fee);
@@ -62,16 +74,17 @@ public class GasSettingsActivity extends BaseActivity {
 
         BigInteger gasPrice = new BigInteger(getIntent().getStringExtra(C.EXTRA_GAS_PRICE));
         BigInteger gasLimit = new BigInteger(getIntent().getStringExtra(C.EXTRA_GAS_LIMIT));
-        BigInteger gasLimitMin = BigInteger.valueOf(C.GAS_LIMIT_MIN);
-        BigInteger gasLimitMax = BigInteger.valueOf(C.GAS_LIMIT_MAX);
+        gasLimitMin = BigInteger.valueOf(C.GAS_LIMIT_MIN);
+        gasLimitMax = BigInteger.valueOf(C.GAS_LIMIT_MAX);
         BigInteger gasPriceMin = BigInteger.valueOf(C.GAS_PRICE_MIN);
         BigInteger networkFeeMax = BigInteger.valueOf(C.NETWORK_FEE_MAX);
 
-        final int gasPriceMinGwei = BalanceUtils.weiToGweiBI(gasPriceMin).intValue();
-        gasPriceSlider.setMax(BalanceUtils
+        gasPriceMinGwei = BalanceUtils.weiToGweiBI(gasPriceMin).intValue();
+        gasPriceMaxGwei = BalanceUtils
                 .weiToGweiBI(networkFeeMax.divide(gasLimitMax))
                 .subtract(BigDecimal.valueOf(gasPriceMinGwei))
-                .intValue());
+                .intValue();
+        gasPriceSlider.setMax(gasPriceMaxGwei);
         int gasPriceProgress = BalanceUtils
                 .weiToGweiBI(gasPrice)
                 .subtract(BigDecimal.valueOf(gasPriceMinGwei))
@@ -81,6 +94,9 @@ public class GasSettingsActivity extends BaseActivity {
                 new SeekBar.OnSeekBarChangeListener() {
                     @Override
                     public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                        if (fromUser) {
+                            gasPriceText.clearFocus();
+                        }
                         viewModel.gasPrice().setValue(BalanceUtils.gweiToWei(BigDecimal.valueOf(progress + gasPriceMinGwei)));
                     }
 
@@ -100,6 +116,9 @@ public class GasSettingsActivity extends BaseActivity {
                 new SeekBar.OnSeekBarChangeListener() {
                     @Override
                     public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                        if (fromUser) {
+                            gasLimitText.clearFocus();
+                        }
                         progress = progress / 100;
                         progress = progress * 100;
                         viewModel.gasLimit().setValue(BigInteger.valueOf(progress).add(gasLimitMin));
@@ -114,6 +133,35 @@ public class GasSettingsActivity extends BaseActivity {
                     }
                 });
 
+        gasPriceText.addTextChangedListener(new TextWatcher() {
+            public void afterTextChanged(Editable s) {
+                gasPriceText.setError(null);
+                try {
+                    Integer price = Integer.parseInt(gasPriceText.getText().toString());
+                    if (gasPriceText.hasFocus()) {
+                        gasPriceSlider.setProgress(price - gasPriceMinGwei);
+                    }
+                } catch (Exception e) { }
+            }
+
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            public void onTextChanged(CharSequence s, int start, int before, int count) { }
+        });
+
+        gasLimitText.addTextChangedListener(new TextWatcher() {
+            public void afterTextChanged(Editable s) {
+                gasLimitText.setError(null);
+                try {
+                    if (gasLimitText.hasFocus()) {
+                        Integer limit = Integer.parseInt(gasLimitText.getText().toString());
+                        gasLimitSlider.setProgress(limit -  gasLimitMin.intValue());
+                    }
+                } catch (Exception e) { }
+            }
+
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            public void onTextChanged(CharSequence s, int start, int before, int count) { }
+        });
 
         viewModel.gasPrice().observe(this, this::onGasPrice);
         viewModel.gasLimit().observe(this, this::onGasLimit);
@@ -137,14 +185,19 @@ public class GasSettingsActivity extends BaseActivity {
     }
 
     private void onGasPrice(BigInteger price) {
-        String priceStr = BalanceUtils.weiToGwei(new BigDecimal(price)) + " " + C.GWEI_UNIT;
-        gasPriceText.setText(priceStr);
+        String priceStr = BalanceUtils.weiToGwei(new BigDecimal(price));
+
+        if (!gasPriceText.hasFocus()) {
+            gasPriceText.setText(priceStr);
+        }
 
         updateNetworkFee();
     }
 
     private void onGasLimit(BigInteger limit) {
-        gasLimitText.setText(limit.toString());
+        if (!gasLimitText.hasFocus()) {
+            gasLimitText.setText(limit.toString());
+        }
 
         updateNetworkFee();
     }
@@ -161,10 +214,36 @@ public class GasSettingsActivity extends BaseActivity {
         return super.onCreateOptionsMenu(menu);
     }
 
+    private boolean validateFields() {
+        boolean valid = true;
+        Integer price = Integer.parseInt(gasPriceText.getText().toString());
+        if (price < gasPriceMinGwei) {
+            gasPriceText.setError(getString(R.string.too_low));
+            valid = false;
+        }
+        if (price > gasPriceMaxGwei) {
+            gasPriceText.setError(getString(R.string.too_high));
+            valid = false;
+        }
+        Integer limit = Integer.parseInt(gasLimitText.getText().toString());
+        if (limit < gasLimitMin.intValue()) {
+            gasLimitText.setError(getString(R.string.too_low));
+            valid = false;
+        }
+        if (limit > gasLimitMax.intValue()) {
+            gasLimitText.setError(getString(R.string.too_high));
+            valid = false;
+        }
+        return valid;
+    }
+
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.action_save: {
+                if (!validateFields()) {
+                    return super.onOptionsItemSelected(item);
+                }
                 Intent intent = new Intent();
                 intent.putExtra(C.EXTRA_GAS_SETTINGS, new GasSettings(
                         new BigDecimal(viewModel.gasPrice().getValue()),
